@@ -1,0 +1,3811 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "extensions": {
+     "jupyter_dashboards": {
+      "version": 1,
+      "views": {
+       "grid_default": {
+        "col": 0,
+        "height": 4,
+        "hidden": false,
+        "row": 0,
+        "width": 4
+       },
+       "report_default": {
+        "hidden": false
+       }
+      }
+     }
+    }
+   },
+   "source": [
+    "# Project: Wrangling and Analyze Data"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Data Gathering\n",
+    "In the cell below, gather **all** three pieces of data for this project and load them in the notebook. **Note:** the methods required to gather each data are different.\n",
+    "1. Directly download the WeRateDogs Twitter archive data (twitter_archive_enhanced.csv)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {
+    "extensions": {
+     "jupyter_dashboards": {
+      "version": 1,
+      "views": {
+       "grid_default": {
+        "hidden": true
+       },
+       "report_default": {
+        "hidden": true
+       }
+      }
+     }
+    }
+   },
+   "outputs": [],
+   "source": [
+    "import numpy as np\n",
+    "import pandas as pd\n",
+    "import requests\n",
+    "import tweepy\n",
+    "from tweepy import OAuthHandler\n",
+    "import json\n",
+    "from timeit import default_timer as timer\n",
+    "import math"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>tweet_id</th>\n",
+       "      <th>in_reply_to_status_id</th>\n",
+       "      <th>in_reply_to_user_id</th>\n",
+       "      <th>timestamp</th>\n",
+       "      <th>source</th>\n",
+       "      <th>text</th>\n",
+       "      <th>retweeted_status_id</th>\n",
+       "      <th>retweeted_status_user_id</th>\n",
+       "      <th>retweeted_status_timestamp</th>\n",
+       "      <th>expanded_urls</th>\n",
+       "      <th>rating_numerator</th>\n",
+       "      <th>rating_denominator</th>\n",
+       "      <th>name</th>\n",
+       "      <th>doggo</th>\n",
+       "      <th>floofer</th>\n",
+       "      <th>pupper</th>\n",
+       "      <th>puppo</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>1271</th>\n",
+       "      <td>709409000000000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>2016-03-14 16:02:49 +0000</td>\n",
+       "      <td>&lt;a href=\"http://twitter.com/download/iphone\" r...</td>\n",
+       "      <td>This is Billy. He sensed a squirrel. 8/10 damn...</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>https://twitter.com/dog_rates/status/709409458...</td>\n",
+       "      <td>8</td>\n",
+       "      <td>10</td>\n",
+       "      <td>Billy</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                tweet_id  in_reply_to_status_id  in_reply_to_user_id  \\\n",
+       "1271  709409000000000000                    NaN                  NaN   \n",
+       "\n",
+       "                      timestamp  \\\n",
+       "1271  2016-03-14 16:02:49 +0000   \n",
+       "\n",
+       "                                                 source  \\\n",
+       "1271  <a href=\"http://twitter.com/download/iphone\" r...   \n",
+       "\n",
+       "                                                   text  retweeted_status_id  \\\n",
+       "1271  This is Billy. He sensed a squirrel. 8/10 damn...                  NaN   \n",
+       "\n",
+       "      retweeted_status_user_id retweeted_status_timestamp  \\\n",
+       "1271                       NaN                        NaN   \n",
+       "\n",
+       "                                          expanded_urls  rating_numerator  \\\n",
+       "1271  https://twitter.com/dog_rates/status/709409458...                 8   \n",
+       "\n",
+       "      rating_denominator   name doggo floofer pupper puppo  \n",
+       "1271                  10  Billy  None    None   None  None  "
+      ]
+     },
+     "execution_count": 2,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "twitter_archive= pd.read_csv('twitter-archive-enhanced.csv')\n",
+    "twitter_archive.sample()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_archive = twitter_archive.copy()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "2. Use the Requests library to download the tweet image prediction (image_predictions.tsv)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "335079"
+      ]
+     },
+     "execution_count": 4,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Downloading Tweet image predictions:\n",
+    "predictions_url = 'https://d17h27t6h515a5.cloudfront.net/topher/2017/August/599fd2ad_image-predictions/image-predictions.tsv'\n",
+    "image_request = requests.get(predictions_url, allow_redirects=True)\n",
+    "\n",
+    "open('image_predictions.tsv', 'wb').write(image_request.content)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>tweet_id</th>\n",
+       "      <th>jpg_url</th>\n",
+       "      <th>img_num</th>\n",
+       "      <th>p1</th>\n",
+       "      <th>p1_conf</th>\n",
+       "      <th>p1_dog</th>\n",
+       "      <th>p2</th>\n",
+       "      <th>p2_conf</th>\n",
+       "      <th>p2_dog</th>\n",
+       "      <th>p3</th>\n",
+       "      <th>p3_conf</th>\n",
+       "      <th>p3_dog</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>666020888022790149</td>\n",
+       "      <td>https://pbs.twimg.com/media/CT4udn0WwAA0aMy.jpg</td>\n",
+       "      <td>1</td>\n",
+       "      <td>Welsh_springer_spaniel</td>\n",
+       "      <td>0.465074</td>\n",
+       "      <td>True</td>\n",
+       "      <td>collie</td>\n",
+       "      <td>0.156665</td>\n",
+       "      <td>True</td>\n",
+       "      <td>Shetland_sheepdog</td>\n",
+       "      <td>0.061428</td>\n",
+       "      <td>True</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>666029285002620928</td>\n",
+       "      <td>https://pbs.twimg.com/media/CT42GRgUYAA5iDo.jpg</td>\n",
+       "      <td>1</td>\n",
+       "      <td>redbone</td>\n",
+       "      <td>0.506826</td>\n",
+       "      <td>True</td>\n",
+       "      <td>miniature_pinscher</td>\n",
+       "      <td>0.074192</td>\n",
+       "      <td>True</td>\n",
+       "      <td>Rhodesian_ridgeback</td>\n",
+       "      <td>0.072010</td>\n",
+       "      <td>True</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>666033412701032449</td>\n",
+       "      <td>https://pbs.twimg.com/media/CT4521TWwAEvMyu.jpg</td>\n",
+       "      <td>1</td>\n",
+       "      <td>German_shepherd</td>\n",
+       "      <td>0.596461</td>\n",
+       "      <td>True</td>\n",
+       "      <td>malinois</td>\n",
+       "      <td>0.138584</td>\n",
+       "      <td>True</td>\n",
+       "      <td>bloodhound</td>\n",
+       "      <td>0.116197</td>\n",
+       "      <td>True</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>666044226329800704</td>\n",
+       "      <td>https://pbs.twimg.com/media/CT5Dr8HUEAA-lEu.jpg</td>\n",
+       "      <td>1</td>\n",
+       "      <td>Rhodesian_ridgeback</td>\n",
+       "      <td>0.408143</td>\n",
+       "      <td>True</td>\n",
+       "      <td>redbone</td>\n",
+       "      <td>0.360687</td>\n",
+       "      <td>True</td>\n",
+       "      <td>miniature_pinscher</td>\n",
+       "      <td>0.222752</td>\n",
+       "      <td>True</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>666049248165822465</td>\n",
+       "      <td>https://pbs.twimg.com/media/CT5IQmsXIAAKY4A.jpg</td>\n",
+       "      <td>1</td>\n",
+       "      <td>miniature_pinscher</td>\n",
+       "      <td>0.560311</td>\n",
+       "      <td>True</td>\n",
+       "      <td>Rottweiler</td>\n",
+       "      <td>0.243682</td>\n",
+       "      <td>True</td>\n",
+       "      <td>Doberman</td>\n",
+       "      <td>0.154629</td>\n",
+       "      <td>True</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "             tweet_id                                          jpg_url  \\\n",
+       "0  666020888022790149  https://pbs.twimg.com/media/CT4udn0WwAA0aMy.jpg   \n",
+       "1  666029285002620928  https://pbs.twimg.com/media/CT42GRgUYAA5iDo.jpg   \n",
+       "2  666033412701032449  https://pbs.twimg.com/media/CT4521TWwAEvMyu.jpg   \n",
+       "3  666044226329800704  https://pbs.twimg.com/media/CT5Dr8HUEAA-lEu.jpg   \n",
+       "4  666049248165822465  https://pbs.twimg.com/media/CT5IQmsXIAAKY4A.jpg   \n",
+       "\n",
+       "   img_num                      p1   p1_conf  p1_dog                  p2  \\\n",
+       "0        1  Welsh_springer_spaniel  0.465074    True              collie   \n",
+       "1        1                 redbone  0.506826    True  miniature_pinscher   \n",
+       "2        1         German_shepherd  0.596461    True            malinois   \n",
+       "3        1     Rhodesian_ridgeback  0.408143    True             redbone   \n",
+       "4        1      miniature_pinscher  0.560311    True          Rottweiler   \n",
+       "\n",
+       "    p2_conf  p2_dog                   p3   p3_conf  p3_dog  \n",
+       "0  0.156665    True    Shetland_sheepdog  0.061428    True  \n",
+       "1  0.074192    True  Rhodesian_ridgeback  0.072010    True  \n",
+       "2  0.138584    True           bloodhound  0.116197    True  \n",
+       "3  0.360687    True   miniature_pinscher  0.222752    True  \n",
+       "4  0.243682    True             Doberman  0.154629    True  "
+      ]
+     },
+     "execution_count": 5,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Diplaying data in the image predictions :\n",
+    "df_image_predictions = pd.read_csv('image_predictions.tsv', sep = '\\t')\n",
+    "df_image_predictions.head()\n",
+    "df_image=df_image_predictions.copy()\n",
+    "df_image.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "\n",
+    "\n",
+    "\n",
+    "\n",
+    "3. Use the Tweepy library to query additional data via the Twitter API (tweet_json.txt)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "consumer_key = 'API key'\n",
+    "consumer_secret = 'API key secret'\n",
+    "access_token = 'Access token'\n",
+    "access_secret = 'Access token secret'\n",
+    "\n",
+    "# Queried each tweets re-tweet:\n",
+    "auth = tweepy.OAuthHandler(consumer_key, consumer_secret)\n",
+    "auth.set_access_token(access_token, access_secret)\n",
+    "api = tweepy.API(auth,wait_on_rate_limit=True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "2356"
+      ]
+     },
+     "execution_count": 7,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "tweet_ids = twitter_archive.tweet_id.values\n",
+    "len(tweet_ids)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>tweet_id</th>\n",
+       "      <th>favorites</th>\n",
+       "      <th>retweets</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>892420643555336193</td>\n",
+       "      <td>39467</td>\n",
+       "      <td>8853</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>892177421306343426</td>\n",
+       "      <td>33819</td>\n",
+       "      <td>6514</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>891815181378084864</td>\n",
+       "      <td>25461</td>\n",
+       "      <td>4328</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>891689557279858688</td>\n",
+       "      <td>42908</td>\n",
+       "      <td>8964</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>891327558926688256</td>\n",
+       "      <td>41048</td>\n",
+       "      <td>9774</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "             tweet_id favorites retweets\n",
+       "0  892420643555336193     39467     8853\n",
+       "1  892177421306343426     33819     6514\n",
+       "2  891815181378084864     25461     4328\n",
+       "3  891689557279858688     42908     8964\n",
+       "4  891327558926688256     41048     9774"
+      ]
+     },
+     "execution_count": 8,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_list = []\n",
+    "with open('tweet_json.txt', 'r') as json_f:\n",
+    "    tweets_info = pd.DataFrame(columns = ['tweet_id','favorites','retweets'])\n",
+    "        \n",
+    "    for info in json_f:\n",
+    "        tweets = json.loads(info)\n",
+    "        \n",
+    "           \n",
+    "        data = {'tweet_id': tweets['id'],\n",
+    "                'favorites': tweets['favorite_count'],\n",
+    "                'retweets': tweets['retweet_count']}\n",
+    "        ser = pd.Series(data)\n",
+    "        tweets_info = tweets_info.append(data,ignore_index=True)\n",
+    "tweets_info.head()\n",
+    "df_tweets=tweets_info.copy()\n",
+    "df_tweets.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "extensions": {
+     "jupyter_dashboards": {
+      "version": 1,
+      "views": {
+       "grid_default": {
+        "col": 4,
+        "height": 4,
+        "hidden": false,
+        "row": 28,
+        "width": 4
+       },
+       "report_default": {
+        "hidden": false
+       }
+      }
+     }
+    }
+   },
+   "source": [
+    "## Assessing Data\n",
+    "In this section, detect and document at least **eight (8) quality issues and two (2) tidiness issue**. You must use **both** visual assessment\n",
+    "programmatic assessement to assess the data.\n",
+    "\n",
+    "**Note:** pay attention to the following key points when you access the data.\n",
+    "\n",
+    "* You only want original ratings (no retweets) that have images. Though there are 5000+ tweets in the dataset, not all are dog ratings and some are retweets.\n",
+    "* Assessing and cleaning the entire dataset completely would require a lot of time, and is not necessary to practice and demonstrate your skills in data wrangling. Therefore, the requirements of this project are only to assess and clean at least 8 quality issues and at least 2 tidiness issues in this dataset.\n",
+    "* The fact that the rating numerators are greater than the denominators does not need to be cleaned. This [unique rating system](http://knowyourmeme.com/memes/theyre-good-dogs-brent) is a big part of the popularity of WeRateDogs.\n",
+    "* You do not need to gather the tweets beyond August 1st, 2017. You can, but note that you won't be able to gather the image predictions for these tweets since you don't have access to the algorithm used.\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "RangeIndex: 2356 entries, 0 to 2355\n",
+      "Data columns (total 17 columns):\n",
+      "tweet_id                      2356 non-null int64\n",
+      "in_reply_to_status_id         78 non-null float64\n",
+      "in_reply_to_user_id           78 non-null float64\n",
+      "timestamp                     2356 non-null object\n",
+      "source                        2356 non-null object\n",
+      "text                          2356 non-null object\n",
+      "retweeted_status_id           181 non-null float64\n",
+      "retweeted_status_user_id      181 non-null float64\n",
+      "retweeted_status_timestamp    181 non-null object\n",
+      "expanded_urls                 2297 non-null object\n",
+      "rating_numerator              2356 non-null int64\n",
+      "rating_denominator            2356 non-null int64\n",
+      "name                          2356 non-null object\n",
+      "doggo                         2356 non-null object\n",
+      "floofer                       2356 non-null object\n",
+      "pupper                        2356 non-null object\n",
+      "puppo                         2356 non-null object\n",
+      "dtypes: float64(4), int64(3), object(10)\n",
+      "memory usage: 313.0+ KB\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_archive.info()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>tweet_id</th>\n",
+       "      <th>in_reply_to_status_id</th>\n",
+       "      <th>in_reply_to_user_id</th>\n",
+       "      <th>timestamp</th>\n",
+       "      <th>source</th>\n",
+       "      <th>text</th>\n",
+       "      <th>retweeted_status_id</th>\n",
+       "      <th>retweeted_status_user_id</th>\n",
+       "      <th>retweeted_status_timestamp</th>\n",
+       "      <th>expanded_urls</th>\n",
+       "      <th>rating_numerator</th>\n",
+       "      <th>rating_denominator</th>\n",
+       "      <th>name</th>\n",
+       "      <th>doggo</th>\n",
+       "      <th>floofer</th>\n",
+       "      <th>pupper</th>\n",
+       "      <th>puppo</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>1419</th>\n",
+       "      <td>698342000000000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>2016-02-13 03:05:01 +0000</td>\n",
+       "      <td>&lt;a href=\"http://twitter.com/download/iphone\" r...</td>\n",
+       "      <td>This is Maximus. He's training for the tetherb...</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>https://twitter.com/dog_rates/status/698342080...</td>\n",
+       "      <td>11</td>\n",
+       "      <td>10</td>\n",
+       "      <td>Maximus</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2330</th>\n",
+       "      <td>666363000000000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>2015-11-16 21:10:36 +0000</td>\n",
+       "      <td>&lt;a href=\"http://twitter.com/download/iphone\" r...</td>\n",
+       "      <td>Unique dog here. Very small. Lives in containe...</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>https://twitter.com/dog_rates/status/666362758...</td>\n",
+       "      <td>6</td>\n",
+       "      <td>10</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2172</th>\n",
+       "      <td>669327000000000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>2015-11-25 01:30:16 +0000</td>\n",
+       "      <td>&lt;a href=\"http://twitter.com/download/iphone\" r...</td>\n",
+       "      <td>Just got home from college. Dis my dog. She do...</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>https://twitter.com/dog_rates/status/669327207...</td>\n",
+       "      <td>13</td>\n",
+       "      <td>10</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>935</th>\n",
+       "      <td>753398000000000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>2016-07-14 01:19:12 +0000</td>\n",
+       "      <td>&lt;a href=\"http://twitter.com/download/iphone\" r...</td>\n",
+       "      <td>This is Scout. Her batteries are low. 12/10 pr...</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>https://twitter.com/dog_rates/status/753398408...</td>\n",
+       "      <td>12</td>\n",
+       "      <td>10</td>\n",
+       "      <td>Scout</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1757</th>\n",
+       "      <td>678765000000000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>2015-12-21 02:30:45 +0000</td>\n",
+       "      <td>&lt;a href=\"http://twitter.com/download/iphone\" r...</td>\n",
+       "      <td>Meet Wilson. He got caught humping the futon. ...</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>https://twitter.com/dog_rates/status/678764513...</td>\n",
+       "      <td>10</td>\n",
+       "      <td>10</td>\n",
+       "      <td>Wilson</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                tweet_id  in_reply_to_status_id  in_reply_to_user_id  \\\n",
+       "1419  698342000000000000                    NaN                  NaN   \n",
+       "2330  666363000000000000                    NaN                  NaN   \n",
+       "2172  669327000000000000                    NaN                  NaN   \n",
+       "935   753398000000000000                    NaN                  NaN   \n",
+       "1757  678765000000000000                    NaN                  NaN   \n",
+       "\n",
+       "                      timestamp  \\\n",
+       "1419  2016-02-13 03:05:01 +0000   \n",
+       "2330  2015-11-16 21:10:36 +0000   \n",
+       "2172  2015-11-25 01:30:16 +0000   \n",
+       "935   2016-07-14 01:19:12 +0000   \n",
+       "1757  2015-12-21 02:30:45 +0000   \n",
+       "\n",
+       "                                                 source  \\\n",
+       "1419  <a href=\"http://twitter.com/download/iphone\" r...   \n",
+       "2330  <a href=\"http://twitter.com/download/iphone\" r...   \n",
+       "2172  <a href=\"http://twitter.com/download/iphone\" r...   \n",
+       "935   <a href=\"http://twitter.com/download/iphone\" r...   \n",
+       "1757  <a href=\"http://twitter.com/download/iphone\" r...   \n",
+       "\n",
+       "                                                   text  retweeted_status_id  \\\n",
+       "1419  This is Maximus. He's training for the tetherb...                  NaN   \n",
+       "2330  Unique dog here. Very small. Lives in containe...                  NaN   \n",
+       "2172  Just got home from college. Dis my dog. She do...                  NaN   \n",
+       "935   This is Scout. Her batteries are low. 12/10 pr...                  NaN   \n",
+       "1757  Meet Wilson. He got caught humping the futon. ...                  NaN   \n",
+       "\n",
+       "      retweeted_status_user_id retweeted_status_timestamp  \\\n",
+       "1419                       NaN                        NaN   \n",
+       "2330                       NaN                        NaN   \n",
+       "2172                       NaN                        NaN   \n",
+       "935                        NaN                        NaN   \n",
+       "1757                       NaN                        NaN   \n",
+       "\n",
+       "                                          expanded_urls  rating_numerator  \\\n",
+       "1419  https://twitter.com/dog_rates/status/698342080...                11   \n",
+       "2330  https://twitter.com/dog_rates/status/666362758...                 6   \n",
+       "2172  https://twitter.com/dog_rates/status/669327207...                13   \n",
+       "935   https://twitter.com/dog_rates/status/753398408...                12   \n",
+       "1757  https://twitter.com/dog_rates/status/678764513...                10   \n",
+       "\n",
+       "      rating_denominator     name doggo floofer pupper puppo  \n",
+       "1419                  10  Maximus  None    None   None  None  \n",
+       "2330                  10     None  None    None   None  None  \n",
+       "2172                  10     None  None    None   None  None  \n",
+       "935                   10    Scout  None    None   None  None  \n",
+       "1757                  10   Wilson  None    None   None  None  "
+      ]
+     },
+     "execution_count": 10,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_archive.sample(5)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(2356, 17)"
+      ]
+     },
+     "execution_count": 11,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_archive.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0"
+      ]
+     },
+     "execution_count": 12,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "sum(df_archive.duplicated())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>tweet_id</th>\n",
+       "      <th>in_reply_to_status_id</th>\n",
+       "      <th>in_reply_to_user_id</th>\n",
+       "      <th>retweeted_status_id</th>\n",
+       "      <th>retweeted_status_user_id</th>\n",
+       "      <th>rating_numerator</th>\n",
+       "      <th>rating_denominator</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>count</th>\n",
+       "      <td>2.356000e+03</td>\n",
+       "      <td>7.800000e+01</td>\n",
+       "      <td>7.800000e+01</td>\n",
+       "      <td>1.810000e+02</td>\n",
+       "      <td>1.810000e+02</td>\n",
+       "      <td>2356.000000</td>\n",
+       "      <td>2356.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>mean</th>\n",
+       "      <td>7.427716e+17</td>\n",
+       "      <td>7.455128e+17</td>\n",
+       "      <td>2.015385e+16</td>\n",
+       "      <td>7.720221e+17</td>\n",
+       "      <td>1.241437e+16</td>\n",
+       "      <td>13.126486</td>\n",
+       "      <td>10.455433</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>std</th>\n",
+       "      <td>6.856706e+16</td>\n",
+       "      <td>7.583419e+16</td>\n",
+       "      <td>1.253546e+17</td>\n",
+       "      <td>6.236131e+16</td>\n",
+       "      <td>9.597227e+16</td>\n",
+       "      <td>45.876648</td>\n",
+       "      <td>6.745237</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>min</th>\n",
+       "      <td>6.660210e+17</td>\n",
+       "      <td>6.660000e+17</td>\n",
+       "      <td>1.185634e+07</td>\n",
+       "      <td>6.660000e+17</td>\n",
+       "      <td>7.832140e+05</td>\n",
+       "      <td>0.000000</td>\n",
+       "      <td>0.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>25%</th>\n",
+       "      <td>6.783992e+17</td>\n",
+       "      <td>6.760000e+17</td>\n",
+       "      <td>3.086374e+08</td>\n",
+       "      <td>7.190000e+17</td>\n",
+       "      <td>4.196984e+09</td>\n",
+       "      <td>10.000000</td>\n",
+       "      <td>10.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>50%</th>\n",
+       "      <td>7.196275e+17</td>\n",
+       "      <td>7.035000e+17</td>\n",
+       "      <td>4.196984e+09</td>\n",
+       "      <td>7.800000e+17</td>\n",
+       "      <td>4.196984e+09</td>\n",
+       "      <td>11.000000</td>\n",
+       "      <td>10.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>75%</th>\n",
+       "      <td>7.993375e+17</td>\n",
+       "      <td>8.260000e+17</td>\n",
+       "      <td>4.196984e+09</td>\n",
+       "      <td>8.200000e+17</td>\n",
+       "      <td>4.196984e+09</td>\n",
+       "      <td>12.000000</td>\n",
+       "      <td>10.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>max</th>\n",
+       "      <td>8.924210e+17</td>\n",
+       "      <td>8.860000e+17</td>\n",
+       "      <td>8.410000e+17</td>\n",
+       "      <td>8.870000e+17</td>\n",
+       "      <td>7.870000e+17</td>\n",
+       "      <td>1776.000000</td>\n",
+       "      <td>170.000000</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "           tweet_id  in_reply_to_status_id  in_reply_to_user_id  \\\n",
+       "count  2.356000e+03           7.800000e+01         7.800000e+01   \n",
+       "mean   7.427716e+17           7.455128e+17         2.015385e+16   \n",
+       "std    6.856706e+16           7.583419e+16         1.253546e+17   \n",
+       "min    6.660210e+17           6.660000e+17         1.185634e+07   \n",
+       "25%    6.783992e+17           6.760000e+17         3.086374e+08   \n",
+       "50%    7.196275e+17           7.035000e+17         4.196984e+09   \n",
+       "75%    7.993375e+17           8.260000e+17         4.196984e+09   \n",
+       "max    8.924210e+17           8.860000e+17         8.410000e+17   \n",
+       "\n",
+       "       retweeted_status_id  retweeted_status_user_id  rating_numerator  \\\n",
+       "count         1.810000e+02              1.810000e+02       2356.000000   \n",
+       "mean          7.720221e+17              1.241437e+16         13.126486   \n",
+       "std           6.236131e+16              9.597227e+16         45.876648   \n",
+       "min           6.660000e+17              7.832140e+05          0.000000   \n",
+       "25%           7.190000e+17              4.196984e+09         10.000000   \n",
+       "50%           7.800000e+17              4.196984e+09         11.000000   \n",
+       "75%           8.200000e+17              4.196984e+09         12.000000   \n",
+       "max           8.870000e+17              7.870000e+17       1776.000000   \n",
+       "\n",
+       "       rating_denominator  \n",
+       "count         2356.000000  \n",
+       "mean            10.455433  \n",
+       "std              6.745237  \n",
+       "min              0.000000  \n",
+       "25%             10.000000  \n",
+       "50%             10.000000  \n",
+       "75%             10.000000  \n",
+       "max            170.000000  "
+      ]
+     },
+     "execution_count": 13,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_archive.describe()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "very             5\n",
+       "unacceptable     1\n",
+       "this             1\n",
+       "the              8\n",
+       "such             1\n",
+       "space            1\n",
+       "quite            4\n",
+       "one              4\n",
+       "old              1\n",
+       "officially       1\n",
+       "not              2\n",
+       "my               1\n",
+       "mad              2\n",
+       "light            1\n",
+       "life             1\n",
+       "just             4\n",
+       "infuriating      1\n",
+       "incredibly       1\n",
+       "his              1\n",
+       "getting          2\n",
+       "by               1\n",
+       "an               7\n",
+       "all              1\n",
+       "actually         2\n",
+       "a               55\n",
+       "Zuzu             1\n",
+       "Zooey            1\n",
+       "Zoey             3\n",
+       "Zoe              1\n",
+       "Ziva             1\n",
+       "                ..\n",
+       "Apollo           1\n",
+       "Antony           1\n",
+       "Anthony          1\n",
+       "Anna             1\n",
+       "Angel            1\n",
+       "Andy             1\n",
+       "Andru            1\n",
+       "Anakin           2\n",
+       "Amélie           1\n",
+       "Amy              1\n",
+       "Ambrose          1\n",
+       "Amber            1\n",
+       "Alice            2\n",
+       "Alfy             1\n",
+       "Alfie            5\n",
+       "Alf              1\n",
+       "Alexanderson     1\n",
+       "Alexander        1\n",
+       "Alejandro        1\n",
+       "Aldrick          1\n",
+       "Albus            2\n",
+       "Albert           2\n",
+       "Al               1\n",
+       "Akumi            1\n",
+       "Aja              1\n",
+       "Aiden            1\n",
+       "Adele            1\n",
+       "Acro             1\n",
+       "Ace              1\n",
+       "Abby             2\n",
+       "Name: name, Length: 957, dtype: int64"
+      ]
+     },
+     "execution_count": 14,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#sorting by names:\n",
+    "df_archive.name.value_counts().sort_index(ascending=False)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0         2\n",
+       "1         9\n",
+       "2         9\n",
+       "3        19\n",
+       "4        17\n",
+       "5        37\n",
+       "6        32\n",
+       "7        55\n",
+       "8       102\n",
+       "9       158\n",
+       "10      461\n",
+       "11      464\n",
+       "12      558\n",
+       "13      351\n",
+       "14       54\n",
+       "15        2\n",
+       "17        1\n",
+       "20        1\n",
+       "24        1\n",
+       "26        1\n",
+       "27        1\n",
+       "44        1\n",
+       "45        1\n",
+       "50        1\n",
+       "60        1\n",
+       "75        2\n",
+       "80        1\n",
+       "84        1\n",
+       "88        1\n",
+       "99        1\n",
+       "121       1\n",
+       "143       1\n",
+       "144       1\n",
+       "165       1\n",
+       "182       1\n",
+       "204       1\n",
+       "420       2\n",
+       "666       1\n",
+       "960       1\n",
+       "1776      1\n",
+       "Name: rating_numerator, dtype: int64"
+      ]
+     },
+     "execution_count": 15,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Sorting by rating numerator values:\n",
+    "df_archive.rating_numerator.value_counts().sort_index()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0         1\n",
+       "2         1\n",
+       "7         1\n",
+       "10     2333\n",
+       "11        3\n",
+       "15        1\n",
+       "16        1\n",
+       "20        2\n",
+       "40        1\n",
+       "50        3\n",
+       "70        1\n",
+       "80        2\n",
+       "90        1\n",
+       "110       1\n",
+       "120       1\n",
+       "130       1\n",
+       "150       1\n",
+       "170       1\n",
+       "Name: rating_denominator, dtype: int64"
+      ]
+     },
+     "execution_count": 16,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Sorting by rating denominator values:\n",
+    "df_archive.rating_denominator.value_counts().sort_index()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>tweet_id</th>\n",
+       "      <th>in_reply_to_status_id</th>\n",
+       "      <th>in_reply_to_user_id</th>\n",
+       "      <th>timestamp</th>\n",
+       "      <th>source</th>\n",
+       "      <th>text</th>\n",
+       "      <th>retweeted_status_id</th>\n",
+       "      <th>retweeted_status_user_id</th>\n",
+       "      <th>retweeted_status_timestamp</th>\n",
+       "      <th>expanded_urls</th>\n",
+       "      <th>rating_numerator</th>\n",
+       "      <th>rating_denominator</th>\n",
+       "      <th>name</th>\n",
+       "      <th>doggo</th>\n",
+       "      <th>floofer</th>\n",
+       "      <th>pupper</th>\n",
+       "      <th>puppo</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>313</th>\n",
+       "      <td>835246000000000000</td>\n",
+       "      <td>8.350000e+17</td>\n",
+       "      <td>26259576.0</td>\n",
+       "      <td>2017-02-24 21:54:03 +0000</td>\n",
+       "      <td>&lt;a href=\"http://twitter.com/download/iphone\" r...</td>\n",
+       "      <td>@jonnysun @Lin_Manuel ok jomny I know you're e...</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>960</td>\n",
+       "      <td>0</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>516</th>\n",
+       "      <td>810985000000000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>2016-12-19 23:06:23 +0000</td>\n",
+       "      <td>&lt;a href=\"http://twitter.com/download/iphone\" r...</td>\n",
+       "      <td>Meet Sam. She smiles 24/7 &amp;amp; secretly aspir...</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>https://www.gofundme.com/sams-smile,https://tw...</td>\n",
+       "      <td>24</td>\n",
+       "      <td>7</td>\n",
+       "      <td>Sam</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2335</th>\n",
+       "      <td>666287000000000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>2015-11-16 16:11:11 +0000</td>\n",
+       "      <td>&lt;a href=\"http://twitter.com/download/iphone\" r...</td>\n",
+       "      <td>This is an Albanian 3 1/2 legged  Episcopalian...</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>https://twitter.com/dog_rates/status/666287406...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>2</td>\n",
+       "      <td>an</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                tweet_id  in_reply_to_status_id  in_reply_to_user_id  \\\n",
+       "313   835246000000000000           8.350000e+17           26259576.0   \n",
+       "516   810985000000000000                    NaN                  NaN   \n",
+       "2335  666287000000000000                    NaN                  NaN   \n",
+       "\n",
+       "                      timestamp  \\\n",
+       "313   2017-02-24 21:54:03 +0000   \n",
+       "516   2016-12-19 23:06:23 +0000   \n",
+       "2335  2015-11-16 16:11:11 +0000   \n",
+       "\n",
+       "                                                 source  \\\n",
+       "313   <a href=\"http://twitter.com/download/iphone\" r...   \n",
+       "516   <a href=\"http://twitter.com/download/iphone\" r...   \n",
+       "2335  <a href=\"http://twitter.com/download/iphone\" r...   \n",
+       "\n",
+       "                                                   text  retweeted_status_id  \\\n",
+       "313   @jonnysun @Lin_Manuel ok jomny I know you're e...                  NaN   \n",
+       "516   Meet Sam. She smiles 24/7 &amp; secretly aspir...                  NaN   \n",
+       "2335  This is an Albanian 3 1/2 legged  Episcopalian...                  NaN   \n",
+       "\n",
+       "      retweeted_status_user_id retweeted_status_timestamp  \\\n",
+       "313                        NaN                        NaN   \n",
+       "516                        NaN                        NaN   \n",
+       "2335                       NaN                        NaN   \n",
+       "\n",
+       "                                          expanded_urls  rating_numerator  \\\n",
+       "313                                                 NaN               960   \n",
+       "516   https://www.gofundme.com/sams-smile,https://tw...                24   \n",
+       "2335  https://twitter.com/dog_rates/status/666287406...                 1   \n",
+       "\n",
+       "      rating_denominator  name doggo floofer pupper puppo  \n",
+       "313                    0  None  None    None   None  None  \n",
+       "516                    7   Sam  None    None   None  None  \n",
+       "2335                   2    an  None    None   None  None  "
+      ]
+     },
+     "execution_count": 17,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_archive.query('rating_denominator<10')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "181"
+      ]
+     },
+     "execution_count": 18,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Checking for num of retweets :\n",
+    "len(df_archive[df_archive.retweeted_status_id.isnull() == False])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "7"
+      ]
+     },
+     "execution_count": 19,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Checkin for duplicate tweet_ids:\n",
+    "df_archive.tweet_id.duplicated().sum()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "RangeIndex: 2075 entries, 0 to 2074\n",
+      "Data columns (total 12 columns):\n",
+      "tweet_id    2075 non-null int64\n",
+      "jpg_url     2075 non-null object\n",
+      "img_num     2075 non-null int64\n",
+      "p1          2075 non-null object\n",
+      "p1_conf     2075 non-null float64\n",
+      "p1_dog      2075 non-null bool\n",
+      "p2          2075 non-null object\n",
+      "p2_conf     2075 non-null float64\n",
+      "p2_dog      2075 non-null bool\n",
+      "p3          2075 non-null object\n",
+      "p3_conf     2075 non-null float64\n",
+      "p3_dog      2075 non-null bool\n",
+      "dtypes: bool(3), float64(3), int64(2), object(4)\n",
+      "memory usage: 152.1+ KB\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_image.info()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>tweet_id</th>\n",
+       "      <th>jpg_url</th>\n",
+       "      <th>img_num</th>\n",
+       "      <th>p1</th>\n",
+       "      <th>p1_conf</th>\n",
+       "      <th>p1_dog</th>\n",
+       "      <th>p2</th>\n",
+       "      <th>p2_conf</th>\n",
+       "      <th>p2_dog</th>\n",
+       "      <th>p3</th>\n",
+       "      <th>p3_conf</th>\n",
+       "      <th>p3_dog</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>1164</th>\n",
+       "      <td>735256018284875776</td>\n",
+       "      <td>https://pbs.twimg.com/media/CjQnclkVEAA4pnK.jpg</td>\n",
+       "      <td>1</td>\n",
+       "      <td>Staffordshire_bullterrier</td>\n",
+       "      <td>0.523191</td>\n",
+       "      <td>True</td>\n",
+       "      <td>French_bulldog</td>\n",
+       "      <td>0.351104</td>\n",
+       "      <td>True</td>\n",
+       "      <td>doormat</td>\n",
+       "      <td>0.028075</td>\n",
+       "      <td>False</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>573</th>\n",
+       "      <td>678424312106393600</td>\n",
+       "      <td>https://pbs.twimg.com/media/CWo_T8gW4AAgJNo.jpg</td>\n",
+       "      <td>1</td>\n",
+       "      <td>Maltese_dog</td>\n",
+       "      <td>0.759945</td>\n",
+       "      <td>True</td>\n",
+       "      <td>toy_poodle</td>\n",
+       "      <td>0.101194</td>\n",
+       "      <td>True</td>\n",
+       "      <td>Shih-Tzu</td>\n",
+       "      <td>0.056037</td>\n",
+       "      <td>True</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>377</th>\n",
+       "      <td>673213039743795200</td>\n",
+       "      <td>https://pbs.twimg.com/media/CVe7r7QVEAAc4Bg.jpg</td>\n",
+       "      <td>1</td>\n",
+       "      <td>schipperke</td>\n",
+       "      <td>0.888082</td>\n",
+       "      <td>True</td>\n",
+       "      <td>groenendael</td>\n",
+       "      <td>0.047727</td>\n",
+       "      <td>True</td>\n",
+       "      <td>kelpie</td>\n",
+       "      <td>0.041398</td>\n",
+       "      <td>True</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1112</th>\n",
+       "      <td>724049859469295616</td>\n",
+       "      <td>https://pbs.twimg.com/media/CgxXf1TWYAEjY61.jpg</td>\n",
+       "      <td>1</td>\n",
+       "      <td>Border_collie</td>\n",
+       "      <td>0.581835</td>\n",
+       "      <td>True</td>\n",
+       "      <td>collie</td>\n",
+       "      <td>0.344588</td>\n",
+       "      <td>True</td>\n",
+       "      <td>Shetland_sheepdog</td>\n",
+       "      <td>0.043584</td>\n",
+       "      <td>True</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1603</th>\n",
+       "      <td>800141422401830912</td>\n",
+       "      <td>https://pbs.twimg.com/media/CxqsX-8XUAAEvjD.jpg</td>\n",
+       "      <td>3</td>\n",
+       "      <td>golden_retriever</td>\n",
+       "      <td>0.938048</td>\n",
+       "      <td>True</td>\n",
+       "      <td>kuvasz</td>\n",
+       "      <td>0.025119</td>\n",
+       "      <td>True</td>\n",
+       "      <td>Labrador_retriever</td>\n",
+       "      <td>0.022977</td>\n",
+       "      <td>True</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>611</th>\n",
+       "      <td>680115823365742593</td>\n",
+       "      <td>https://pbs.twimg.com/media/CXBBurSWMAELewi.jpg</td>\n",
+       "      <td>1</td>\n",
+       "      <td>pug</td>\n",
+       "      <td>0.999365</td>\n",
+       "      <td>True</td>\n",
+       "      <td>French_bulldog</td>\n",
+       "      <td>0.000544</td>\n",
+       "      <td>True</td>\n",
+       "      <td>Boston_bull</td>\n",
+       "      <td>0.000028</td>\n",
+       "      <td>True</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1757</th>\n",
+       "      <td>825147591692263424</td>\n",
+       "      <td>https://pbs.twimg.com/media/C3ODWpfXAAAP1fb.jpg</td>\n",
+       "      <td>1</td>\n",
+       "      <td>Pekinese</td>\n",
+       "      <td>0.354823</td>\n",
+       "      <td>True</td>\n",
+       "      <td>Pomeranian</td>\n",
+       "      <td>0.245390</td>\n",
+       "      <td>True</td>\n",
+       "      <td>toy_poodle</td>\n",
+       "      <td>0.136545</td>\n",
+       "      <td>True</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>979</th>\n",
+       "      <td>707297311098011648</td>\n",
+       "      <td>https://pbs.twimg.com/media/CdDTJLMW4AEST--.jpg</td>\n",
+       "      <td>1</td>\n",
+       "      <td>Blenheim_spaniel</td>\n",
+       "      <td>0.370717</td>\n",
+       "      <td>True</td>\n",
+       "      <td>Shih-Tzu</td>\n",
+       "      <td>0.201566</td>\n",
+       "      <td>True</td>\n",
+       "      <td>black-footed_ferret</td>\n",
+       "      <td>0.101559</td>\n",
+       "      <td>False</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1304</th>\n",
+       "      <td>753294487569522689</td>\n",
+       "      <td>https://pbs.twimg.com/media/CnQ9Vq1WEAEYP01.jpg</td>\n",
+       "      <td>1</td>\n",
+       "      <td>chow</td>\n",
+       "      <td>0.194773</td>\n",
+       "      <td>True</td>\n",
+       "      <td>monitor</td>\n",
+       "      <td>0.102305</td>\n",
+       "      <td>False</td>\n",
+       "      <td>Siberian_husky</td>\n",
+       "      <td>0.086855</td>\n",
+       "      <td>True</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>330</th>\n",
+       "      <td>672095186491711488</td>\n",
+       "      <td>https://pbs.twimg.com/media/CVPDAR9XIAAm8QB.jpg</td>\n",
+       "      <td>1</td>\n",
+       "      <td>pug</td>\n",
+       "      <td>0.794087</td>\n",
+       "      <td>True</td>\n",
+       "      <td>French_bulldog</td>\n",
+       "      <td>0.140796</td>\n",
+       "      <td>True</td>\n",
+       "      <td>bull_mastiff</td>\n",
+       "      <td>0.044681</td>\n",
+       "      <td>True</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                tweet_id                                          jpg_url  \\\n",
+       "1164  735256018284875776  https://pbs.twimg.com/media/CjQnclkVEAA4pnK.jpg   \n",
+       "573   678424312106393600  https://pbs.twimg.com/media/CWo_T8gW4AAgJNo.jpg   \n",
+       "377   673213039743795200  https://pbs.twimg.com/media/CVe7r7QVEAAc4Bg.jpg   \n",
+       "1112  724049859469295616  https://pbs.twimg.com/media/CgxXf1TWYAEjY61.jpg   \n",
+       "1603  800141422401830912  https://pbs.twimg.com/media/CxqsX-8XUAAEvjD.jpg   \n",
+       "611   680115823365742593  https://pbs.twimg.com/media/CXBBurSWMAELewi.jpg   \n",
+       "1757  825147591692263424  https://pbs.twimg.com/media/C3ODWpfXAAAP1fb.jpg   \n",
+       "979   707297311098011648  https://pbs.twimg.com/media/CdDTJLMW4AEST--.jpg   \n",
+       "1304  753294487569522689  https://pbs.twimg.com/media/CnQ9Vq1WEAEYP01.jpg   \n",
+       "330   672095186491711488  https://pbs.twimg.com/media/CVPDAR9XIAAm8QB.jpg   \n",
+       "\n",
+       "      img_num                         p1   p1_conf  p1_dog              p2  \\\n",
+       "1164        1  Staffordshire_bullterrier  0.523191    True  French_bulldog   \n",
+       "573         1                Maltese_dog  0.759945    True      toy_poodle   \n",
+       "377         1                 schipperke  0.888082    True     groenendael   \n",
+       "1112        1              Border_collie  0.581835    True          collie   \n",
+       "1603        3           golden_retriever  0.938048    True          kuvasz   \n",
+       "611         1                        pug  0.999365    True  French_bulldog   \n",
+       "1757        1                   Pekinese  0.354823    True      Pomeranian   \n",
+       "979         1           Blenheim_spaniel  0.370717    True        Shih-Tzu   \n",
+       "1304        1                       chow  0.194773    True         monitor   \n",
+       "330         1                        pug  0.794087    True  French_bulldog   \n",
+       "\n",
+       "       p2_conf  p2_dog                   p3   p3_conf  p3_dog  \n",
+       "1164  0.351104    True              doormat  0.028075   False  \n",
+       "573   0.101194    True             Shih-Tzu  0.056037    True  \n",
+       "377   0.047727    True               kelpie  0.041398    True  \n",
+       "1112  0.344588    True    Shetland_sheepdog  0.043584    True  \n",
+       "1603  0.025119    True   Labrador_retriever  0.022977    True  \n",
+       "611   0.000544    True          Boston_bull  0.000028    True  \n",
+       "1757  0.245390    True           toy_poodle  0.136545    True  \n",
+       "979   0.201566    True  black-footed_ferret  0.101559   False  \n",
+       "1304  0.102305   False       Siberian_husky  0.086855    True  \n",
+       "330   0.140796    True         bull_mastiff  0.044681    True  "
+      ]
+     },
+     "execution_count": 21,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_image.sample(10)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(2075, 12)"
+      ]
+     },
+     "execution_count": 22,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_image.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 23,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0"
+      ]
+     },
+     "execution_count": 23,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "sum(df_image.duplicated())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>tweet_id</th>\n",
+       "      <th>img_num</th>\n",
+       "      <th>p1_conf</th>\n",
+       "      <th>p2_conf</th>\n",
+       "      <th>p3_conf</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>count</th>\n",
+       "      <td>2.075000e+03</td>\n",
+       "      <td>2075.000000</td>\n",
+       "      <td>2075.000000</td>\n",
+       "      <td>2.075000e+03</td>\n",
+       "      <td>2.075000e+03</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>mean</th>\n",
+       "      <td>7.384514e+17</td>\n",
+       "      <td>1.203855</td>\n",
+       "      <td>0.594548</td>\n",
+       "      <td>1.345886e-01</td>\n",
+       "      <td>6.032417e-02</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>std</th>\n",
+       "      <td>6.785203e+16</td>\n",
+       "      <td>0.561875</td>\n",
+       "      <td>0.271174</td>\n",
+       "      <td>1.006657e-01</td>\n",
+       "      <td>5.090593e-02</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>min</th>\n",
+       "      <td>6.660209e+17</td>\n",
+       "      <td>1.000000</td>\n",
+       "      <td>0.044333</td>\n",
+       "      <td>1.011300e-08</td>\n",
+       "      <td>1.740170e-10</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>25%</th>\n",
+       "      <td>6.764835e+17</td>\n",
+       "      <td>1.000000</td>\n",
+       "      <td>0.364412</td>\n",
+       "      <td>5.388625e-02</td>\n",
+       "      <td>1.622240e-02</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>50%</th>\n",
+       "      <td>7.119988e+17</td>\n",
+       "      <td>1.000000</td>\n",
+       "      <td>0.588230</td>\n",
+       "      <td>1.181810e-01</td>\n",
+       "      <td>4.944380e-02</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>75%</th>\n",
+       "      <td>7.932034e+17</td>\n",
+       "      <td>1.000000</td>\n",
+       "      <td>0.843855</td>\n",
+       "      <td>1.955655e-01</td>\n",
+       "      <td>9.180755e-02</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>max</th>\n",
+       "      <td>8.924206e+17</td>\n",
+       "      <td>4.000000</td>\n",
+       "      <td>1.000000</td>\n",
+       "      <td>4.880140e-01</td>\n",
+       "      <td>2.734190e-01</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "           tweet_id      img_num      p1_conf       p2_conf       p3_conf\n",
+       "count  2.075000e+03  2075.000000  2075.000000  2.075000e+03  2.075000e+03\n",
+       "mean   7.384514e+17     1.203855     0.594548  1.345886e-01  6.032417e-02\n",
+       "std    6.785203e+16     0.561875     0.271174  1.006657e-01  5.090593e-02\n",
+       "min    6.660209e+17     1.000000     0.044333  1.011300e-08  1.740170e-10\n",
+       "25%    6.764835e+17     1.000000     0.364412  5.388625e-02  1.622240e-02\n",
+       "50%    7.119988e+17     1.000000     0.588230  1.181810e-01  4.944380e-02\n",
+       "75%    7.932034e+17     1.000000     0.843855  1.955655e-01  9.180755e-02\n",
+       "max    8.924206e+17     4.000000     1.000000  4.880140e-01  2.734190e-01"
+      ]
+     },
+     "execution_count": 24,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_image.describe()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 25,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Checkin for duplicate tweet_ids:\n",
+    "df_image.tweet_id.duplicated().sum()\n",
+    "df_image['tweet_id'].fillna(value=\"None\", inplace=True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 26,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "RangeIndex: 2354 entries, 0 to 2353\n",
+      "Data columns (total 3 columns):\n",
+      "tweet_id     2354 non-null object\n",
+      "favorites    2354 non-null object\n",
+      "retweets     2354 non-null object\n",
+      "dtypes: object(3)\n",
+      "memory usage: 55.2+ KB\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_tweets.info()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 27,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>tweet_id</th>\n",
+       "      <th>favorites</th>\n",
+       "      <th>retweets</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>549</th>\n",
+       "      <td>804738756058218496</td>\n",
+       "      <td>15326</td>\n",
+       "      <td>4480</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1237</th>\n",
+       "      <td>712092745624633345</td>\n",
+       "      <td>3211</td>\n",
+       "      <td>1016</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>307</th>\n",
+       "      <td>835574547218894849</td>\n",
+       "      <td>19447</td>\n",
+       "      <td>4121</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2101</th>\n",
+       "      <td>670676092097810432</td>\n",
+       "      <td>267</td>\n",
+       "      <td>45</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>644</th>\n",
+       "      <td>793165685325201412</td>\n",
+       "      <td>10478</td>\n",
+       "      <td>3238</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>888</th>\n",
+       "      <td>759566828574212096</td>\n",
+       "      <td>0</td>\n",
+       "      <td>24319</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>431</th>\n",
+       "      <td>820749716845686786</td>\n",
+       "      <td>34984</td>\n",
+       "      <td>11525</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1581</th>\n",
+       "      <td>687102708889812993</td>\n",
+       "      <td>2571</td>\n",
+       "      <td>1124</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>641</th>\n",
+       "      <td>793210959003287553</td>\n",
+       "      <td>9997</td>\n",
+       "      <td>3301</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2080</th>\n",
+       "      <td>670815497391357952</td>\n",
+       "      <td>3410</td>\n",
+       "      <td>1708</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                tweet_id favorites retweets\n",
+       "549   804738756058218496     15326     4480\n",
+       "1237  712092745624633345      3211     1016\n",
+       "307   835574547218894849     19447     4121\n",
+       "2101  670676092097810432       267       45\n",
+       "644   793165685325201412     10478     3238\n",
+       "888   759566828574212096         0    24319\n",
+       "431   820749716845686786     34984    11525\n",
+       "1581  687102708889812993      2571     1124\n",
+       "641   793210959003287553      9997     3301\n",
+       "2080  670815497391357952      3410     1708"
+      ]
+     },
+     "execution_count": 27,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_tweets.sample(10)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 28,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(2354, 3)"
+      ]
+     },
+     "execution_count": 28,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_tweets.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 29,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>tweet_id</th>\n",
+       "      <th>favorites</th>\n",
+       "      <th>retweets</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>count</th>\n",
+       "      <td>2354</td>\n",
+       "      <td>2354</td>\n",
+       "      <td>2354</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>unique</th>\n",
+       "      <td>2354</td>\n",
+       "      <td>2007</td>\n",
+       "      <td>1724</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>top</th>\n",
+       "      <td>667495797102141441</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3652</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>freq</th>\n",
+       "      <td>1</td>\n",
+       "      <td>179</td>\n",
+       "      <td>5</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                  tweet_id  favorites  retweets\n",
+       "count                 2354       2354      2354\n",
+       "unique                2354       2007      1724\n",
+       "top     667495797102141441          0      3652\n",
+       "freq                     1        179         5"
+      ]
+     },
+     "execution_count": 29,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_tweets.describe()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 30,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0"
+      ]
+     },
+     "execution_count": 30,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "sum(df_tweets.duplicated())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 31,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Checkin for duplicate tweet_ids:\n",
+    "df_tweets.tweet_id.duplicated().sum()\n",
+    "df_tweets['tweet_id'].fillna(value=\"None\", inplace=True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Quality issues\n",
+    "df_archive(Twitter Archive table):\n",
+    "\n",
+    "1.Timestamp should be converted to datetime datatype.\n",
+    "\n",
+    "2.Dog names are not correct(starting with lowercase like 'a','by','such','not',etc..)\n",
+    "\n",
+    "3.There are 181 retweets these can be duplicate values or null values.\n",
+    "\n",
+    "4.Columns like in_reply_to_status_id, in_reply_to_user_id, retweeted_status_id,retweeted_status_user_id,,retweeted_status_timestamp can be dropped.\n",
+    "\n",
+    "5.Rating numerator column has very large numbers(like 1176).\n",
+    "\n",
+    "6.Rating denominators have values less than 10.\n",
+    "\n",
+    "7.Data types for tweet-ids must be changed from float to string.\n",
+    "\n",
+    "df_image(Image predictions table):\n",
+    "\n",
+    "8.Datatypes has to be changed for tweet_id(change to string)\n",
+    "\n",
+    "df_tweets(Tweets_info table):\n",
+    "\n",
+    "9.Data types for favorites and tweets must be changed.(to integer)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "extensions": {
+     "jupyter_dashboards": {
+      "version": 1,
+      "views": {
+       "grid_default": {
+        "col": 0,
+        "height": 7,
+        "hidden": false,
+        "row": 40,
+        "width": 12
+       },
+       "report_default": {
+        "hidden": false
+       }
+      }
+     }
+    }
+   },
+   "source": [
+    "### Tidiness issues\n",
+    "1.We have to merge the 3 tables to make it one.\n",
+    "\n",
+    "2.We need to address the dog columns as one stage column."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "extensions": {
+     "jupyter_dashboards": {
+      "version": 1,
+      "views": {
+       "grid_default": {
+        "col": 4,
+        "height": 4,
+        "hidden": false,
+        "row": 32,
+        "width": 4
+       },
+       "report_default": {
+        "hidden": false
+       }
+      }
+     }
+    }
+   },
+   "source": [
+    "## Cleaning Data\n",
+    "In this section, clean **all** of the issues you documented while assessing. \n",
+    "\n",
+    "**Note:** Make a copy of the original data before cleaning. Cleaning includes merging individual pieces of data according to the rules of [tidy data](https://cran.r-project.org/web/packages/tidyr/vignettes/tidy-data.html). The result should be a high-quality and tidy master pandas DataFrame (or DataFrames, if appropriate)."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Make copies of original pieces of data\n",
+    "df_archive_copy = df_archive.copy()\n",
+    "df_image_copy = df_image.copy()\n",
+    "df_tweets_copy = df_tweets.copy()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Issue #1:"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Define:\n",
+    "a.Convert tweet_id data type in df_twitter archive table to string:\n",
+    "b.Convert tweet_id dat type in df_image prediction table to string:"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Code"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 33,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Convert tweet_id data type in df_twitter archive table to string:\n",
+    "df_archive_copy.tweet_id = df_archive_copy.tweet_id .astype(str)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Test"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "RangeIndex: 2356 entries, 0 to 2355\n",
+      "Data columns (total 17 columns):\n",
+      "tweet_id                      2356 non-null object\n",
+      "in_reply_to_status_id         78 non-null float64\n",
+      "in_reply_to_user_id           78 non-null float64\n",
+      "timestamp                     2356 non-null object\n",
+      "source                        2356 non-null object\n",
+      "text                          2356 non-null object\n",
+      "retweeted_status_id           181 non-null float64\n",
+      "retweeted_status_user_id      181 non-null float64\n",
+      "retweeted_status_timestamp    181 non-null object\n",
+      "expanded_urls                 2297 non-null object\n",
+      "rating_numerator              2356 non-null int64\n",
+      "rating_denominator            2356 non-null int64\n",
+      "name                          2356 non-null object\n",
+      "doggo                         2356 non-null object\n",
+      "floofer                       2356 non-null object\n",
+      "pupper                        2356 non-null object\n",
+      "puppo                         2356 non-null object\n",
+      "dtypes: float64(4), int64(2), object(11)\n",
+      "memory usage: 313.0+ KB\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_archive_copy.info()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 35,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Convert tweet_id dat type in df_image prediction table to string:\n",
+    "df_image_copy.tweet_id = df_image_copy.tweet_id.astype(str)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Test:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "RangeIndex: 2075 entries, 0 to 2074\n",
+      "Data columns (total 12 columns):\n",
+      "tweet_id    2075 non-null object\n",
+      "jpg_url     2075 non-null object\n",
+      "img_num     2075 non-null int64\n",
+      "p1          2075 non-null object\n",
+      "p1_conf     2075 non-null float64\n",
+      "p1_dog      2075 non-null bool\n",
+      "p2          2075 non-null object\n",
+      "p2_conf     2075 non-null float64\n",
+      "p2_dog      2075 non-null bool\n",
+      "p3          2075 non-null object\n",
+      "p3_conf     2075 non-null float64\n",
+      "p3_dog      2075 non-null bool\n",
+      "dtypes: bool(3), float64(3), int64(1), object(5)\n",
+      "memory usage: 152.1+ KB\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_image_copy.info()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Issue #2:"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "collapsed": true,
+    "extensions": {
+     "jupyter_dashboards": {
+      "version": 1,
+      "views": {
+       "grid_default": {
+        "hidden": true
+       },
+       "report_default": {
+        "hidden": true
+       }
+      }
+     }
+    }
+   },
+   "source": [
+    "#### Define:\n",
+    "\n",
+    "Change the timestamp column."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Code"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 37,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Convert timestamp to datetime:\n",
+    "df_archive_copy['timestamp'] = pd.to_datetime(df_archive_copy['timestamp'],errors='ignore')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Test"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 38,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "RangeIndex: 2356 entries, 0 to 2355\n",
+      "Data columns (total 17 columns):\n",
+      "tweet_id                      2356 non-null object\n",
+      "in_reply_to_status_id         78 non-null float64\n",
+      "in_reply_to_user_id           78 non-null float64\n",
+      "timestamp                     2356 non-null datetime64[ns]\n",
+      "source                        2356 non-null object\n",
+      "text                          2356 non-null object\n",
+      "retweeted_status_id           181 non-null float64\n",
+      "retweeted_status_user_id      181 non-null float64\n",
+      "retweeted_status_timestamp    181 non-null object\n",
+      "expanded_urls                 2297 non-null object\n",
+      "rating_numerator              2356 non-null int64\n",
+      "rating_denominator            2356 non-null int64\n",
+      "name                          2356 non-null object\n",
+      "doggo                         2356 non-null object\n",
+      "floofer                       2356 non-null object\n",
+      "pupper                        2356 non-null object\n",
+      "puppo                         2356 non-null object\n",
+      "dtypes: datetime64[ns](1), float64(4), int64(2), object(10)\n",
+      "memory usage: 313.0+ KB\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_archive_copy.info()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Issue #3:"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Define:\n",
+    "Convert all the names with a, by,not,etc to None:"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Code"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 39,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "140         Nelly\n",
+       "1412         CeCe\n",
+       "1932         None\n",
+       "696          None\n",
+       "2257        Olive\n",
+       "2234     Skittles\n",
+       "1423         None\n",
+       "1126        Ollie\n",
+       "1278         Lucy\n",
+       "1289    Jebberson\n",
+       "Name: name, dtype: object"
+      ]
+     },
+     "execution_count": 39,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_archive_copy['name'].sample(10)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 40,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Converting all the names with a,by,etc to None values:\n",
+    "df_archive_copy.name.replace(['such', 'an', 'the', 'just', 'by', 'a', 'mad', 'old', 'space', \n",
+    "             'quite', 'actually', 'infuriating', 'all', 'officially', 'my', 'unacceptable', 'incredibly',\n",
+    "              'not', '0', 'life', 'one', 'his', 'very'],np.NaN, inplace =True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 41,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_archive_copy['name'].fillna(value=\"None\", inplace=True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Test:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 42,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "None         850\n",
+       "Charlie       12\n",
+       "Lucy          11\n",
+       "Oliver        11\n",
+       "Cooper        11\n",
+       "Lola          10\n",
+       "Tucker        10\n",
+       "Penny         10\n",
+       "Bo             9\n",
+       "Winston        9\n",
+       "Sadie          8\n",
+       "Daisy          7\n",
+       "Toby           7\n",
+       "Buddy          7\n",
+       "Bailey         7\n",
+       "Jack           6\n",
+       "Scout          6\n",
+       "Dave           6\n",
+       "Milo           6\n",
+       "Bella          6\n",
+       "Rusty          6\n",
+       "Jax            6\n",
+       "Koda           6\n",
+       "Leo            6\n",
+       "Oscar          6\n",
+       "Stanley        6\n",
+       "Alfie          5\n",
+       "George         5\n",
+       "Sammy          5\n",
+       "Bentley        5\n",
+       "            ... \n",
+       "Obie           1\n",
+       "Gin            1\n",
+       "Bobby          1\n",
+       "Lillie         1\n",
+       "Karma          1\n",
+       "Horace         1\n",
+       "Moofasa        1\n",
+       "Finnegus       1\n",
+       "Alexander      1\n",
+       "Brooks         1\n",
+       "Autumn         1\n",
+       "Brian          1\n",
+       "Cuddles        1\n",
+       "Doobert        1\n",
+       "Marty          1\n",
+       "Pete           1\n",
+       "Amy            1\n",
+       "Butters        1\n",
+       "Mimosa         1\n",
+       "Rudy           1\n",
+       "Kanu           1\n",
+       "Sojourner      1\n",
+       "Tupawc         1\n",
+       "Ivar           1\n",
+       "Callie         1\n",
+       "Edd            1\n",
+       "Coopson        1\n",
+       "Lizzie         1\n",
+       "Julio          1\n",
+       "Rascal         1\n",
+       "Name: name, Length: 935, dtype: int64"
+      ]
+     },
+     "execution_count": 42,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_archive_copy.name.value_counts()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Issue #5:"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Define:\n",
+    "Keeping original retweets in df_archive and remove the retweets in retweeted_status_id column thats null or duplicates.\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Code:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 43,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_archive_copy=df_archive_copy[df_archive_copy.retweeted_status_id.isnull()]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Test:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 44,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0"
+      ]
+     },
+     "execution_count": 44,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "len(df_archive_copy[df_archive_copy.retweeted_status_id.isnull()==False])"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Issue #6:"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Define:\n",
+    "Dropping uneccessary columns in df_archive_copy table(retweeted_status_id,retweeted_user_id,retweeted_status_timestamp)\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Code:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 45,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_archive_copy.drop(['retweeted_status_id','retweeted_status_user_id','retweeted_status_timestamp'],axis=1,inplace=True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Test:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 46,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "Int64Index: 2175 entries, 0 to 2355\n",
+      "Data columns (total 14 columns):\n",
+      "tweet_id                 2175 non-null object\n",
+      "in_reply_to_status_id    78 non-null float64\n",
+      "in_reply_to_user_id      78 non-null float64\n",
+      "timestamp                2175 non-null datetime64[ns]\n",
+      "source                   2175 non-null object\n",
+      "text                     2175 non-null object\n",
+      "expanded_urls            2117 non-null object\n",
+      "rating_numerator         2175 non-null int64\n",
+      "rating_denominator       2175 non-null int64\n",
+      "name                     2175 non-null object\n",
+      "doggo                    2175 non-null object\n",
+      "floofer                  2175 non-null object\n",
+      "pupper                   2175 non-null object\n",
+      "puppo                    2175 non-null object\n",
+      "dtypes: datetime64[ns](1), float64(2), int64(2), object(9)\n",
+      "memory usage: 254.9+ KB\n"
+     ]
+    }
+   ],
+   "source": [
+    "\n",
+    "df_archive_copy.info()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Issue #7:"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Define:\n",
+    "Working with Numerator and Denominator:"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Code:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 47,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>rating_numerator</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>count</th>\n",
+       "      <td>2175.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>mean</th>\n",
+       "      <td>13.215172</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>std</th>\n",
+       "      <td>47.725696</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>min</th>\n",
+       "      <td>0.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>25%</th>\n",
+       "      <td>10.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>50%</th>\n",
+       "      <td>11.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>75%</th>\n",
+       "      <td>12.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>max</th>\n",
+       "      <td>1776.000000</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "       rating_numerator\n",
+       "count       2175.000000\n",
+       "mean          13.215172\n",
+       "std           47.725696\n",
+       "min            0.000000\n",
+       "25%           10.000000\n",
+       "50%           11.000000\n",
+       "75%           12.000000\n",
+       "max         1776.000000"
+      ]
+     },
+     "execution_count": 47,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Using describe function for numerator:\n",
+    "df_archive_copy[['rating_numerator']].describe()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 48,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "array([  13,   12,   14,    5,   17,   11,   10,  420,  666,    6,  182,\n",
+       "         15,  960,    0,    7,   84,   24,   75,   27,    3,    8,    9,\n",
+       "          4,  165, 1776,  204,   50,   99,   80,   45,   60,   44,    1,\n",
+       "        143,  121,   20,   26,    2,  144,   88])"
+      ]
+     },
+     "execution_count": 48,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Finding unique values in rating_numerator:\n",
+    "df_archive_copy.rating_numerator.unique()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 49,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>rating_denominator</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>count</th>\n",
+       "      <td>2175.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>mean</th>\n",
+       "      <td>10.492874</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>std</th>\n",
+       "      <td>7.019084</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>min</th>\n",
+       "      <td>0.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>25%</th>\n",
+       "      <td>10.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>50%</th>\n",
+       "      <td>10.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>75%</th>\n",
+       "      <td>10.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>max</th>\n",
+       "      <td>170.000000</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "       rating_denominator\n",
+       "count         2175.000000\n",
+       "mean            10.492874\n",
+       "std              7.019084\n",
+       "min              0.000000\n",
+       "25%             10.000000\n",
+       "50%             10.000000\n",
+       "75%             10.000000\n",
+       "max            170.000000"
+      ]
+     },
+     "execution_count": 49,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Using describe function for denominator:\n",
+    "df_archive_copy[['rating_denominator']].describe()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 50,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "array([ 10,   0,  15,  70,   7, 150,  11, 170,  20,  50,  90,  80,  40,\n",
+       "       130, 110,  16, 120,   2])"
+      ]
+     },
+     "execution_count": 50,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Finding unique values in rating_denominators:\n",
+    "df_archive_copy.rating_denominator.unique()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 51,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>tweet_id</th>\n",
+       "      <th>in_reply_to_status_id</th>\n",
+       "      <th>in_reply_to_user_id</th>\n",
+       "      <th>timestamp</th>\n",
+       "      <th>source</th>\n",
+       "      <th>text</th>\n",
+       "      <th>expanded_urls</th>\n",
+       "      <th>rating_numerator</th>\n",
+       "      <th>rating_denominator</th>\n",
+       "      <th>name</th>\n",
+       "      <th>doggo</th>\n",
+       "      <th>floofer</th>\n",
+       "      <th>pupper</th>\n",
+       "      <th>puppo</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>979</th>\n",
+       "      <td>749981000000000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>2016-07-04 15:00:45</td>\n",
+       "      <td>&lt;a href=\"https://about.twitter.com/products/tw...</td>\n",
+       "      <td>This is Atticus. He's quite simply America af....</td>\n",
+       "      <td>https://twitter.com/dog_rates/status/749981277...</td>\n",
+       "      <td>1776</td>\n",
+       "      <td>10</td>\n",
+       "      <td>Atticus</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "               tweet_id  in_reply_to_status_id  in_reply_to_user_id  \\\n",
+       "979  749981000000000000                    NaN                  NaN   \n",
+       "\n",
+       "              timestamp                                             source  \\\n",
+       "979 2016-07-04 15:00:45  <a href=\"https://about.twitter.com/products/tw...   \n",
+       "\n",
+       "                                                  text  \\\n",
+       "979  This is Atticus. He's quite simply America af....   \n",
+       "\n",
+       "                                         expanded_urls  rating_numerator  \\\n",
+       "979  https://twitter.com/dog_rates/status/749981277...              1776   \n",
+       "\n",
+       "     rating_denominator     name doggo floofer pupper puppo  \n",
+       "979                  10  Atticus  None    None   None  None  "
+      ]
+     },
+     "execution_count": 51,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Finding numerator for 1176:\n",
+    "df_archive_copy.query('rating_numerator ==1776')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Rating is inconsistent, but the rating numerators are greater than the denominators and does not need to be cleaned."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 52,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>tweet_id</th>\n",
+       "      <th>in_reply_to_status_id</th>\n",
+       "      <th>in_reply_to_user_id</th>\n",
+       "      <th>timestamp</th>\n",
+       "      <th>source</th>\n",
+       "      <th>text</th>\n",
+       "      <th>expanded_urls</th>\n",
+       "      <th>rating_numerator</th>\n",
+       "      <th>rating_denominator</th>\n",
+       "      <th>name</th>\n",
+       "      <th>doggo</th>\n",
+       "      <th>floofer</th>\n",
+       "      <th>pupper</th>\n",
+       "      <th>puppo</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>313</th>\n",
+       "      <td>835246000000000000</td>\n",
+       "      <td>8.350000e+17</td>\n",
+       "      <td>26259576.0</td>\n",
+       "      <td>2017-02-24 21:54:03</td>\n",
+       "      <td>&lt;a href=\"http://twitter.com/download/iphone\" r...</td>\n",
+       "      <td>@jonnysun @Lin_Manuel ok jomny I know you're e...</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>960</td>\n",
+       "      <td>0</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>516</th>\n",
+       "      <td>810985000000000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>2016-12-19 23:06:23</td>\n",
+       "      <td>&lt;a href=\"http://twitter.com/download/iphone\" r...</td>\n",
+       "      <td>Meet Sam. She smiles 24/7 &amp;amp; secretly aspir...</td>\n",
+       "      <td>https://www.gofundme.com/sams-smile,https://tw...</td>\n",
+       "      <td>24</td>\n",
+       "      <td>7</td>\n",
+       "      <td>Sam</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2335</th>\n",
+       "      <td>666287000000000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>2015-11-16 16:11:11</td>\n",
+       "      <td>&lt;a href=\"http://twitter.com/download/iphone\" r...</td>\n",
+       "      <td>This is an Albanian 3 1/2 legged  Episcopalian...</td>\n",
+       "      <td>https://twitter.com/dog_rates/status/666287406...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>2</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                tweet_id  in_reply_to_status_id  in_reply_to_user_id  \\\n",
+       "313   835246000000000000           8.350000e+17           26259576.0   \n",
+       "516   810985000000000000                    NaN                  NaN   \n",
+       "2335  666287000000000000                    NaN                  NaN   \n",
+       "\n",
+       "               timestamp                                             source  \\\n",
+       "313  2017-02-24 21:54:03  <a href=\"http://twitter.com/download/iphone\" r...   \n",
+       "516  2016-12-19 23:06:23  <a href=\"http://twitter.com/download/iphone\" r...   \n",
+       "2335 2015-11-16 16:11:11  <a href=\"http://twitter.com/download/iphone\" r...   \n",
+       "\n",
+       "                                                   text  \\\n",
+       "313   @jonnysun @Lin_Manuel ok jomny I know you're e...   \n",
+       "516   Meet Sam. She smiles 24/7 &amp; secretly aspir...   \n",
+       "2335  This is an Albanian 3 1/2 legged  Episcopalian...   \n",
+       "\n",
+       "                                          expanded_urls  rating_numerator  \\\n",
+       "313                                                 NaN               960   \n",
+       "516   https://www.gofundme.com/sams-smile,https://tw...                24   \n",
+       "2335  https://twitter.com/dog_rates/status/666287406...                 1   \n",
+       "\n",
+       "      rating_denominator  name doggo floofer pupper puppo  \n",
+       "313                    0  None  None    None   None  None  \n",
+       "516                    7   Sam  None    None   None  None  \n",
+       "2335                   2  None  None    None   None  None  "
+      ]
+     },
+     "execution_count": 52,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Finding denominators for <10:\n",
+    "df_archive_copy.query('rating_denominator<10')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 53,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Dropping the unwanted rows:\n",
+    "df_archive_copy.drop([313], inplace=True)\n",
+    "df_archive_copy.drop([516], inplace=True)\n",
+    "df_archive_copy.drop([2335], inplace=True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Test:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 54,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>tweet_id</th>\n",
+       "      <th>in_reply_to_status_id</th>\n",
+       "      <th>in_reply_to_user_id</th>\n",
+       "      <th>timestamp</th>\n",
+       "      <th>source</th>\n",
+       "      <th>text</th>\n",
+       "      <th>expanded_urls</th>\n",
+       "      <th>rating_numerator</th>\n",
+       "      <th>rating_denominator</th>\n",
+       "      <th>name</th>\n",
+       "      <th>doggo</th>\n",
+       "      <th>floofer</th>\n",
+       "      <th>pupper</th>\n",
+       "      <th>puppo</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "Empty DataFrame\n",
+       "Columns: [tweet_id, in_reply_to_status_id, in_reply_to_user_id, timestamp, source, text, expanded_urls, rating_numerator, rating_denominator, name, doggo, floofer, pupper, puppo]\n",
+       "Index: []"
+      ]
+     },
+     "execution_count": 54,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_archive_copy[df_archive_copy['rating_denominator']==7.0]\n",
+    "df_archive_copy[df_archive_copy['rating_denominator']==2.0]\n",
+    "df_archive_copy[df_archive_copy['rating_denominator']==0.0]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Issue #8:"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Define:\n",
+    "Working with dog_names and converting the dog_names to one column as dog_stage:"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Code:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 55,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Creating a new dataframe df1_archive_copy:\n",
+    "df1_archive_copy = pd.DataFrame(df_archive_copy)\n",
+    "#Replace all NaN and None dog_stage to an empty string:\n",
+    "df_archive_copy.doggo.replace('None', ' ', inplace=True)\n",
+    "df_archive_copy.doggo.replace(np.NaN, ' ', inplace=True)\n",
+    "df_archive_copy.floofer.replace('None', ' ', inplace=True)\n",
+    "df_archive_copy.floofer.replace(np.NaN, ' ', inplace=True)\n",
+    "df_archive_copy.pupper.replace('None', ' ', inplace=True)\n",
+    "df_archive_copy.pupper.replace(np.NaN , ' ', inplace=True)\n",
+    "df_archive_copy.puppo.replace('None', ' ', inplace=True)\n",
+    "df_archive_copy.puppo.replace(np.NaN, ' ', inplace=True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 56,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Now get the columns combined :\n",
+    "df_archive_copy['dog_stages'] = df_archive_copy.text.str.extract('(doggo|floofer|pupper|puppo)',expand=True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 57,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#There are some dogs have multiple stages:\n",
+    "df_archive_copy['dog_stages'] = df1_archive_copy.doggo + df1_archive_copy.floofer + df1_archive_copy.pupper + df1_archive_copy.puppo\n",
+    "df_archive_copy.loc[df1_archive_copy.dog_stages == 'doggopupper', 'dog_stages'] = 'doggo, pupper'\n",
+    "df_archive_copy.loc[df1_archive_copy.dog_stages == 'doggopuppo', 'dog_stages'] = 'doggo, puppo'\n",
+    "df_archive_copy.loc[df1_archive_copy.dog_stages == 'doggofloofer', 'dog_stages'] = 'doggo, floofer'"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 58,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Now delete useless columns :\n",
+    "df_archive_copy.drop(['doggo','floofer','pupper','puppo'],axis=1,inplace=True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Test:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 59,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "                  1828\n",
+       "  pupper           224\n",
+       "doggo               75\n",
+       "   puppo            24\n",
+       "doggo pupper        10\n",
+       " floofer             9\n",
+       "doggo  puppo         1\n",
+       "doggofloofer         1\n",
+       "Name: dog_stages, dtype: int64"
+      ]
+     },
+     "execution_count": 59,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_archive_copy.dog_stages.value_counts()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 60,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "Int64Index: 2172 entries, 0 to 2355\n",
+      "Data columns (total 11 columns):\n",
+      "tweet_id                 2172 non-null object\n",
+      "in_reply_to_status_id    77 non-null float64\n",
+      "in_reply_to_user_id      77 non-null float64\n",
+      "timestamp                2172 non-null datetime64[ns]\n",
+      "source                   2172 non-null object\n",
+      "text                     2172 non-null object\n",
+      "expanded_urls            2115 non-null object\n",
+      "rating_numerator         2172 non-null int64\n",
+      "rating_denominator       2172 non-null int64\n",
+      "name                     2172 non-null object\n",
+      "dog_stages               2172 non-null object\n",
+      "dtypes: datetime64[ns](1), float64(2), int64(2), object(6)\n",
+      "memory usage: 203.6+ KB\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_archive_copy.info()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 61,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Drop columns in_reply_to_status_id and in_reply_to_user_id:\n",
+    "df_archive_copy.drop(['in_reply_to_status_id','in_reply_to_user_id'],axis=1,inplace=True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 62,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "Int64Index: 2172 entries, 0 to 2355\n",
+      "Data columns (total 9 columns):\n",
+      "tweet_id              2172 non-null object\n",
+      "timestamp             2172 non-null datetime64[ns]\n",
+      "source                2172 non-null object\n",
+      "text                  2172 non-null object\n",
+      "expanded_urls         2115 non-null object\n",
+      "rating_numerator      2172 non-null int64\n",
+      "rating_denominator    2172 non-null int64\n",
+      "name                  2172 non-null object\n",
+      "dog_stages            2172 non-null object\n",
+      "dtypes: datetime64[ns](1), int64(2), object(6)\n",
+      "memory usage: 169.7+ KB\n"
+     ]
+    }
+   ],
+   "source": [
+    "#Test:\n",
+    "df_archive_copy.info()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 63,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Drop unwanted columns in df_image predictions table:\n",
+    "df_image_copy.drop(['img_num','p1','p1_conf','p1_dog','p2','p2_conf','p2_dog','p3','p3_conf','p3_dog'],axis=1,inplace=True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 64,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>tweet_id</th>\n",
+       "      <th>jpg_url</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>666020888022790149</td>\n",
+       "      <td>https://pbs.twimg.com/media/CT4udn0WwAA0aMy.jpg</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>666029285002620928</td>\n",
+       "      <td>https://pbs.twimg.com/media/CT42GRgUYAA5iDo.jpg</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>666033412701032449</td>\n",
+       "      <td>https://pbs.twimg.com/media/CT4521TWwAEvMyu.jpg</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>666044226329800704</td>\n",
+       "      <td>https://pbs.twimg.com/media/CT5Dr8HUEAA-lEu.jpg</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>666049248165822465</td>\n",
+       "      <td>https://pbs.twimg.com/media/CT5IQmsXIAAKY4A.jpg</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "             tweet_id                                          jpg_url\n",
+       "0  666020888022790149  https://pbs.twimg.com/media/CT4udn0WwAA0aMy.jpg\n",
+       "1  666029285002620928  https://pbs.twimg.com/media/CT42GRgUYAA5iDo.jpg\n",
+       "2  666033412701032449  https://pbs.twimg.com/media/CT4521TWwAEvMyu.jpg\n",
+       "3  666044226329800704  https://pbs.twimg.com/media/CT5Dr8HUEAA-lEu.jpg\n",
+       "4  666049248165822465  https://pbs.twimg.com/media/CT5IQmsXIAAKY4A.jpg"
+      ]
+     },
+     "execution_count": 64,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Testing:\n",
+    "df_image_copy.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Issue #9:"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Define:\n",
+    "Convert favourites and retweets to integer in df_tweets table:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 65,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_tweets_copy['favorites'] = df_tweets_copy['favorites'].apply(pd.to_numeric, errors='coerce')\n",
+    "df_tweets_copy['retweets'] = df_tweets_copy['retweets'].apply(pd.to_numeric, errors='coerce')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Test:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 66,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "RangeIndex: 2354 entries, 0 to 2353\n",
+      "Data columns (total 3 columns):\n",
+      "tweet_id     2354 non-null int64\n",
+      "favorites    2354 non-null int64\n",
+      "retweets     2354 non-null int64\n",
+      "dtypes: int64(3)\n",
+      "memory usage: 55.2 KB\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_tweets_copy.info()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 67,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "RangeIndex: 2354 entries, 0 to 2353\n",
+      "Data columns (total 3 columns):\n",
+      "tweet_id     2354 non-null object\n",
+      "favorites    2354 non-null int64\n",
+      "retweets     2354 non-null int64\n",
+      "dtypes: int64(2), object(1)\n",
+      "memory usage: 55.2+ KB\n",
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "Int64Index: 2172 entries, 0 to 2355\n",
+      "Data columns (total 9 columns):\n",
+      "tweet_id              2172 non-null object\n",
+      "timestamp             2172 non-null datetime64[ns]\n",
+      "source                2172 non-null object\n",
+      "text                  2172 non-null object\n",
+      "expanded_urls         2115 non-null object\n",
+      "rating_numerator      2172 non-null int64\n",
+      "rating_denominator    2172 non-null int64\n",
+      "name                  2172 non-null object\n",
+      "dog_stages            2172 non-null object\n",
+      "dtypes: datetime64[ns](1), int64(2), object(6)\n",
+      "memory usage: 169.7+ KB\n",
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "RangeIndex: 2075 entries, 0 to 2074\n",
+      "Data columns (total 2 columns):\n",
+      "tweet_id    2075 non-null object\n",
+      "jpg_url     2075 non-null object\n",
+      "dtypes: object(2)\n",
+      "memory usage: 32.5+ KB\n"
+     ]
+    }
+   ],
+   "source": [
+    "#converting tweet_id in all 3 dataset tables to string:\n",
+    "df_archive_copy.tweet_id = df_archive_copy.tweet_id.astype(str)\n",
+    "df_tweets_copy.tweet_id = df_tweets_copy.tweet_id .astype(str)\n",
+    "df_image_copy.tweet_id = df_image_copy.tweet_id .astype(str)\n",
+    "df_tweets_copy.info()\n",
+    "df_archive_copy.info()\n",
+    "df_image_copy.info()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 74,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "merged = df_archive_copy.merge(df_image_copy, on = 'tweet_id',how = 'left')\n",
+    "merged_final = merged.merge(df_tweets_copy, on = 'tweet_id', how = 'left')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 75,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "Int64Index: 2172 entries, 0 to 2171\n",
+      "Data columns (total 12 columns):\n",
+      "tweet_id              2172 non-null object\n",
+      "timestamp             2172 non-null datetime64[ns]\n",
+      "source                2172 non-null object\n",
+      "text                  2172 non-null object\n",
+      "expanded_urls         2115 non-null object\n",
+      "rating_numerator      2172 non-null int64\n",
+      "rating_denominator    2172 non-null int64\n",
+      "name                  2172 non-null object\n",
+      "dog_stages            2172 non-null object\n",
+      "jpg_url               0 non-null object\n",
+      "favorites             0 non-null float64\n",
+      "retweets              0 non-null float64\n",
+      "dtypes: datetime64[ns](1), float64(2), int64(2), object(7)\n",
+      "memory usage: 220.6+ KB\n"
+     ]
+    }
+   ],
+   "source": [
+    "merged_final.info()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Storing Data\n",
+    "Save gathered, assessed, and cleaned master dataset to a CSV file named \"twitter_archive_master.csv\"."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Analyzing and Visualizing Data\n",
+    "In this section, analyze and visualize your wrangled data. You must produce at least **three (3) insights and one (1) visualization.**"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Insights:\n",
+    "1.\n",
+    "\n",
+    "2.\n",
+    "\n",
+    "3."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "collapsed": true
+   },
+   "source": [
+    "### Visualization"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "extensions": {
+   "jupyter_dashboards": {
+    "activeView": "report_default",
+    "version": 1,
+    "views": {
+     "grid_default": {
+      "cellMargin": 10,
+      "defaultCellHeight": 20,
+      "maxColumns": 12,
+      "name": "grid",
+      "type": "grid"
+     },
+     "report_default": {
+      "name": "report",
+      "type": "report"
+     }
+    }
+   }
+  },
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.6.3"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
